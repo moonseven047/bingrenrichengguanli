@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能医师日程管家 Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f4f7fb;
+            color: #2c3e50;
+            padding: 16px;
+            max-width: 640px;
+            margin: 0 auto;
+            padding-bottom: 90px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a3b5d;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sub {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 16px;
+            background: #eaf2f8;
+            border-radius: 8px;
+            padding: 10px 14px;
+            border-left: 4px solid #3498db;
+        }
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            background: white;
+            border-radius: 14px;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 60px;
+            border: none;
+            background: transparent;
+            padding: 10px 0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #7f8c8d;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .tab-btn.active {
+            background: #1a3b5d;
+            color: white;
+            box-shadow: 0 2px 6px rgba(26,59,93,0.2);
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 5px solid #bdc3c7;
+            transition: 0.15s;
+        }
+        .card.urgent { border-left-color: #e74c3c; background: #fef9f8; }
+        .card.surgery { border-left-color: #e67e22; background: #fefcf5; }
+        .card.consult { border-left-color: #8e44ad; background: #fdf9ff; }
+        .card.done-card { opacity: 0.75; border-left-color: #95a5a6; }
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .patient-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .badge {
+            font-size: 11px;
+            background: #ecf0f1;
+            padding: 3px 10px;
+            border-radius: 20px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .badge.red { background: #e74c3c; color: white; }
+        .badge.orange { background: #e67e22; color: white; }
+        .badge.purple { background: #8e44ad; color: white; }
+        .badge.green { background: #27ae60; color: white; }
+        .task-list { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f2f5; }
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 14px;
+        }
+        .task-item .icon { font-size: 16px; width: 24px; text-align: center; }
+        .task-item .time-tag {
+            background: #eaf2f8;
+            padding: 1px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #2980b9;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .task-item.done-task {
+            text-decoration: line-through;
+            color: #95a5a6;
+        }
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+        .btn.primary { background: #1a3b5d; color: white; }
+        .btn.success { background: #27ae60; color: white; }
+        .btn.danger { background: #e74c3c; color: white; }
+        .btn.warning { background: #e67e22; color: white; }
+        .btn.purple { background: #8e44ad; color: white; }
+        .btn.outline { background: transparent; border: 1px solid #bdc3c7; }
+        .btn.small { padding: 4px 10px; font-size: 12px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #34495e; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 10px;
+            font-size: 15px;
+            background: #fafcff;
+        }
+        .form-group input:focus { outline: none; border-color: #1a3b5d; box-shadow: 0 0 0 3px rgba(26,59,93,0.1); }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .form-row .form-group { flex: 1; min-width: 120px; }
+        .hidden { display: none; }
+        .empty-state { text-align: center; color: #bdc3c7; padding: 30px 10px; font-size: 15px; }
+        .search-box {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #dcdfe6;
+            border-radius: 10px;
+            font-size: 15px;
+            margin-bottom: 12px;
+            background: white;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #dcdfe6;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .filter-btn.active { background: #1a3b5d; color: white; border-color: #1a3b5d; }
+        .meta-info { font-size: 13px; color: #7f8c8d; margin: 4px 0 6px; }
+        .surg-consult-tag {
+            display: inline-block;
+            background: #ecf0f1;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🏥 日程管家 Pro</h1>
+<div class="sub">⚡ 动态病程 · 手术/会诊双引擎 · 全历史追溯</div>
+
+<div class="tab-bar">
+    <button class="tab-btn active" data-tab="today">📋 今日</button>
+    <button class="tab-btn" data-tab="all">👥 全部</button>
+    <button class="tab-btn" data-tab="add">➕ 新病人</button>
+</div>
+
+<!-- 今日待办 -->
+<div id="tab-today" class="tab-content">
+    <div id="today-list"></div>
+</div>
+
+<!-- 全部病人 -->
+<div id="tab-all" class="tab-content hidden">
+    <input type="text" class="search-box" id="search-input" placeholder="🔍 搜索病人姓名..." oninput="renderAllPatients()">
+    <div class="filter-bar" id="filter-bar">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="todo">待办</button>
+        <button class="filter-btn" data-filter="done">已完成</button>
+        <button class="filter-btn" data-filter="surgery">手术相关</button>
+    </div>
+    <div id="all-list"></div>
+</div>
+
+<!-- 添加病人 -->
+<div id="tab-add" class="tab-content hidden">
+    <div class="card">
+        <h3 style="margin-bottom:14px;">📝 录入新病人</h3>
+        <div class="form-group"><label>👤 姓名</label><input type="text" id="p-name" placeholder="请输入姓名"></div>
+        <div class="form-group"><label>📅 入院日期</label><input type="date" id="p-admission"></div>
+        <button class="btn primary" style="width:100%;padding:12px;font-size:16px;" onclick="addPatient()">✅ 添加</button>
+        <div style="margin-top:10px;font-size:13px;color:#95a5a6;">💡 手术、会诊信息可在“全部病人”中后续补充。</div>
+    </div>
+</div>
+
+<script>
+// ========== 数据层 ==========
+let patients = JSON.parse(localStorage.getItem('dr_patients_pro')) || [];
+// 任务历史: { id: patientId_date_taskText, patientId, date, text, completed: true }
+let taskHistory = JSON.parse(localStorage.getItem('dr_task_history')) || [];
+
+function saveAll() {
+    localStorage.setItem('dr_patients_pro', JSON.stringify(patients));
+    localStorage.setItem('dr_task_history', JSON.stringify(taskHistory));
+}
+
+// ========== 工具 ==========
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function dateDiff(d1, d2) { return Math.floor((new Date(d1) - new Date(d2)) / (1000*60*60*24)); }
+
+// ========== 核心规则引擎 ==========
+function getTasksForPatient(patient, checkDate, history) {
+    const tasks = [];
+    const adm = patient.admission;
+    const surg = patient.surgeryDate;
+    const consult = patient.consultDate;
+    const diff = dateDiff(checkDate, adm); // 入院第N天 (0-based)
+
+    // ---------- 1. 入院前3天固定病程 ----------
+    if (diff === 0) tasks.push({ text: '📝 写首程', type: 'admission', priority: 5 });
+    if (diff === 1) tasks.push({ text: '👨‍⚕️ 主治查房', type: 'admission', priority: 5 });
+    if (diff === 2) tasks.push({ text: '👨‍⚕️ 主任查房', type: 'admission', priority: 5 });
+
+    // ---------- 2. 普通病程 (每3天, 但支持重置) ----------
+    // 查找该病人最近一次"特殊触发"日期 (即用户手动触发普通病程的日期)
+    const triggerDates = history
+        .filter(h => h.patientId === patient.id && h.text.includes('触发普通病程'))
+        .map(h => h.date)
+        .sort();
+    const lastTrigger = triggerDates.length > 0 ? triggerDates[triggerDates.length-1] : null;
+    
+    // 计算基础起始日: 若存在触发日期, 则从触发日起每3天; 否则从入院第3天 (diff=2) 起每3天
+    let baseDate = lastTrigger ? lastTrigger : adm;
+    // 从baseDate开始, 每3天提醒一次 (但仅当checkDate >= baseDate + 2天, 即入院第3天之后)
+    const baseDiff = dateDiff(checkDate, baseDate);
+    if (baseDiff >= 0 && baseDiff % 3 === 0 && diff >= 2) {
+        // 但若当天已有手术/会诊特殊任务, 不替代, 叠加显示
+        tasks.push({ text: '📋 普通病程 (每3日)', type: 'routine', priority: 3 });
+    }
+
+    // ---------- 3. 手术规则 ----------
+    if (surg) {
+        const sDiff = dateDiff(checkDate, surg);
+        if (sDiff === -1) tasks.push({ text: '📋 术前讨论', type: 'surgery', priority: 6 });
+        if (sDiff === 0) {
+            tasks.push({ text: '🔪 手术记录', type: 'surgery', priority: 7 });
+            tasks.push({ text: '📝 术后首程', type: 'surgery', priority: 7 });
+        }
+        if (sDiff >= 1 && sDiff <= 3) {
+            tasks.push({ text: `📋 术后第${sDiff}天病程`, type: 'surgery', priority: 4 });
+        }
+    }
+
+    // ---------- 4. 会诊规则 ----------
+    if (consult) {
+        const cDiff = dateDiff(checkDate, consult);
+        if (cDiff === 0) {
+            tasks.push({ text: '👨‍⚕️ 写会诊病程', type: 'consult', priority: 6 });
+        }
+    }
+
+    // 去重 (同一天同一文字只保留一个)
+    const unique = [];
+    const seen = new Set();
+    tasks.forEach(t => {
+        const key = t.text;
+        if (!seen.has(key)) { seen.add(key); unique.push(t); }
+    });
+    // 按优先级排序
+    unique.sort((a,b) => b.priority - a.priority);
+    return unique;
+}
+
+// 获取某病人的今日待办 (未完成的)
+function getTodayTodos(patient) {
+    const today = todayStr();
+    const allTasks = getTasksForPatient(patient, today, taskHistory);
+    return allTasks.filter(task => {
+        const key = `${patient.id}_${today}_${task.text}`;
+        return !taskHistory.some(h => h.id === key && h.completed === true);
+    });
+}
+
+// 获取某病人的所有历史任务 (包括已完成)
+function getAllTasksWithHistory(patient) {
+    const today = todayStr();
+    // 获取该病人所有日期的任务 (取最近30天以防数据过大)
+    const tasksMap = new Map();
+    for (let d = -30; d <= 30; d++) {
+        const date = new Date();
+        date.setDate(date.getDate() + d);
+        const dateStr = date.toISOString().split('T')[0];
+        const tasks = getTasksForPatient(patient, dateStr, taskHistory);
+        tasks.forEach(t => {
+            const key = `${patient.id}_${dateStr}_${t.text}`;
+            const completed = taskHistory.some(h => h.id === key && h.completed === true);
+            tasksMap.set(key, { ...t, date: dateStr, completed, key });
+        });
+    }
+    return Array.from(tasksMap.values());
+}
+
+// ========== 渲染 ==========
+let currentFilter = 'all';
+
+function renderToday() {
+    const container = document.getElementById('today-list');
+    const today = todayStr();
+    let html = '';
+    let hasAny = false;
+
+    patients.forEach(p => {
+        const todos = getTodayTodos(p);
+        if (todos.length === 0) return;
+        hasAny = true;
+        const isSurg = todos.some(t => t.type === 'surgery');
+        const isConsult = todos.some(t => t.type === 'consult');
+        let cardClass = 'urgent';
+        if (isSurg) cardClass = 'surgery';
+        if (isConsult) cardClass = 'consult';
+
+        html += `<div class="card ${cardClass}">
+                    <div class="patient-header">
+                        <span class="patient-name">${p.name}</span>
+                        <span>
+                            ${p.surgeryName ? `<span class="badge orange">🔪 ${p.surgeryName}</span>` : ''}
+                            ${p.consultDept ? `<span class="badge purple">👨‍⚕️ ${p.consultDept}</span>` : ''}
+                        </span>
+                    </div>
+                    <div class="meta-info">入院: ${p.admission} ${p.surgeryDate ? ' | 手术: '+p.surgeryDate : ''} ${p.consultDate ? ' | 会诊: '+p.consultDate : ''}</div>
+                    <div class="task-list">`;
+        todos.forEach(t => {
+            html += `<div class="task-item"><span class="icon">${t.text.split(' ')[0]}</span><span>${t.text}</span><span class="time-tag">今日</span></div>`;
+        });
+        html += `<div class="btn-group">
+                    <button class="btn success small" onclick="completeTodos('${p.id}')">✅ 全部已处理</button>
+                    <button class="btn warning small" onclick="triggerSpecialRoutine('${p.id}')">🔄 触发特殊病程</button>
+                </div>`;
+        html += `</div></div>`;
+    });
+
+    container.innerHTML = hasAny ? html : `<div class="empty-state">🎉 今日无待办，辛苦了！</div>`;
+}
+
+function renderAllPatients() {
+    const container = document.getElementById('all-list');
+    const search = document.getElementById('search-input').value.trim().toLowerCase();
+    let filtered = patients.filter(p => p.name.toLowerCase().includes(search));
+
+    // 筛选
+    if (currentFilter === 'todo') {
+        filtered = filtered.filter(p => getTodayTodos(p).length > 0);
+    } else if (currentFilter === 'done') {
+        // 有历史完成记录
+        filtered = filtered.filter(p => taskHistory.some(h => h.patientId === p.id && h.completed));
+    } else if (currentFilter === 'surgery') {
+        filtered = filtered.filter(p => p.surgeryDate);
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">没有匹配的病人</div>`;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(p => {
+        const todos = getTodayTodos(p);
+        const allHist = getAllTasksWithHistory(p).filter(t => t.completed).slice(0, 10); // 最近10条
+        const isSurg = p.surgeryDate ? true : false;
+        const isConsult = p.consultDate ? true : false;
+        let cardClass = '';
+        if (isSurg) cardClass = 'surgery';
+        if (isConsult) cardClass = 'consult';
+        if (todos.length === 0 && !isSurg && !isConsult) cardClass = '';
+
+        html += `<div class="card ${cardClass}">
+                    <div class="patient-header">
+                        <span class="patient-name">${p.name}</span>
+                        <div>
+                            ${p.surgeryName ? `<span class="badge orange">🔪 ${p.surgeryName}</span>` : ''}
+                            ${p.consultDept ? `<span class="badge purple">👨‍⚕️ ${p.consultDept}</span>` : ''}
+                            ${todos.length > 0 ? `<span class="badge red">${todos.length}项待办</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="meta-info">入院: ${p.admission} ${p.surgeryDate ? ' | 手术: '+p.surgeryDate : ''} ${p.consultDate ? ' | 会诊: '+p.consultDate : ''}</div>
+                    
+                    <!-- 手术/会诊管理区 -->
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;">
+                        ${!p.surgeryDate ? `<button class="btn primary small" onclick="addSurgery('${p.id}')">🔪 添加手术</button>` : `<button class="btn danger small" onclick="removeSurgery('${p.id}')">取消手术</button>`}
+                        ${!p.consultDate ? `<button class="btn purple small" onclick="addConsult('${p.id}')">👨‍⚕️ 添加会诊</button>` : `<button class="btn danger small" onclick="removeConsult('${p.id}')">取消会诊</button>`}
+                        <button class="btn danger small" onclick="deletePatient('${p.id}')">🗑️ 出院</button>
+                    </div>
+
+                    <!-- 今日待办 -->
+                    ${todos.length > 0 ? `<div class="task-list"><strong>今日待办：</strong>` : ''}
+                    ${todos.map(t => `<div class="task-item"><span class="icon">${t.text.split(' ')[0]}</span><span>${t.text}</span><span class="time-tag">今日</span></div>`).join('')}
+                    ${todos.length > 0 ? `<div class="btn-group"><button class="btn success small" onclick="completeTodos('${p.id}')">✅ 全部已处理</button></div></div>` : ''}
+
+                    <!-- 已完成历史 -->
+                    ${allHist.length > 0 ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #ecf0f1;"><span style="font-size:12px;color:#95a5a6;">已完成记录：</span>` : ''}
+                    ${allHist.map(t => `<div class="task-item done-task"><span class="icon">${t.text.split(' ')[0]}</span><span>${t.text}</span><span class="time-tag">${t.date}</span></div>`).join('')}
+                    ${allHist.length > 0 ? `</div>` : ''}
+                </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ========== 操作函数 ==========
+function addPatient() {
+    const name = document.getElementById('p-name').value.trim();
+    const adm = document.getElementById('p-admission').value;
+    if (!name || !adm) { alert('请填写完整'); return; }
+    patients.push({ id: Date.now().toString(36)+Math.random().toString(36).substr(2,4), name, admission: adm, surgeryDate: null, surgeryName: null, consultDate: null, consultDept: null });
+    saveAll();
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-admission').value = '';
+    alert('✅ 添加成功，可在“全部病人”中补充手术/会诊信息');
+    switchTab('all');
+    renderAll();
+}
+
+function addSurgery(id) {
+    const p = patients.find(p => p.id === id);
+    if (!p) return;
+    const date = prompt('请输入手术日期 (YYYY-MM-DD)：', todayStr());
+    if (!date) return;
+    const name = prompt('请输入手术名称：', '');
+    if (name === null) return;
+    p.surgeryDate = date;
+    p.surgeryName = name || '未命名手术';
+    saveAll();
+    renderAll();
+}
+
+function removeSurgery(id) {
+    const p = patients.find(p => p.id === id);
+    if (!p) return;
+    if (!confirm('取消手术信息？')) return;
+    p.surgeryDate = null;
+    p.surgeryName = null;
+    saveAll();
+    renderAll();
+}
+
+function addConsult(id) {
+    const p = patients.find(p => p.id === id);
+    if (!p) return;
+    const date = prompt('请输入会诊日期 (YYYY-MM-DD)：', todayStr());
+    if (!date) return;
+    const dept = prompt('请输入会诊科室：', '');
+    if (dept === null) return;
+    p.consultDate = date;
+    p.consultDept = dept || '未填科室';
+    saveAll();
+    renderAll();
+}
+
+function removeConsult(id) {
+    const p = patients.find(p => p.id === id);
+    if (!p) return;
+    if (!confirm('取消会诊信息？')) return;
+    p.consultDate = null;
+    p.consultDept = null;
+    saveAll();
+    renderAll();
+}
+
+function completeTodos(id) {
+    const p = patients.find(p => p.id === id);
+    if (!p) return;
+    const today = todayStr();
+    const todos = getTodayTodos(p);
+    todos.forEach(t => {
+        const key = `${id}_${today}_${t.text}`;
+        if (!taskHistory.some(h => h.id === key)) {
+            taskHistory.push({ id: key, patientId: id, date: today, text: t.text, completed: true });
+        }
+    });
+    saveAll();
+    renderAll();
+}
+
+// 触发特殊病程 (重置普通病程周期)
+function triggerSpecialRoutine(id) {
+    const p = patients.find(p => p.id === id);
+    if (!p) return;
+    const today = todayStr();
+    // 记录一个"触发普通病程"标记, 用于重置周期
+    const key = `${id}_${today}_触发普通病程`;
+    if (!taskHistory.some(h => h.id === key)) {
+        taskHistory.push({ id: key, patientId: id, date: today, text: '触发普通病程', completed: true });
+        saveAll();
+        alert(`✅ 已为 ${p.name} 触发特殊病程，从今日起每3日提醒普通病程。`);
+    } else {
+        alert('今日已触发过，无需重复操作。');
+    }
+    renderAll();
+}
+
+function deletePatient(id) {
+    if (!confirm('确认出院/删除该病人？所有历史记录将保留。')) return;
+    patients = patients.filter(p => p.id !== id);
+    saveAll();
+    renderAll();
+}
+
+// ========== Tab & Filter ==========
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+    if (tab === 'today') renderToday();
+    if (tab === 'all') renderAllPatients();
+}
+
+document.querySelectorAll('.tab-btn').forEach(b => {
+    b.addEventListener('click', function() { switchTab(this.dataset.tab); });
+});
+
+document.querySelectorAll('.filter-btn').forEach(b => {
+    b.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(f => f.classList.remove('active'));
+        this.classList.add('active');
+        currentFilter = this.dataset.filter;
+        renderAllPatients();
+    });
+});
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('p-admission').value = todayStr();
+    renderToday();
+    renderAllPatients();
+    switchTab('today');
+});
+</script>
+</body>
+</html>
