@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="site.webmanifest" />
     <style>
+        /* ===== 全局重置 ===== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -85,7 +86,7 @@
             flex-wrap: wrap;
             gap: 6px;
         }
-        .patient-name { font-size: 18px; font-weight: 600; }
+        .patient-name { font-size: 18px; font-weight: 600; color: #2c3e50; }
         .badge {
             font-size: 11px;
             background: #ecf0f1;
@@ -105,6 +106,7 @@
             gap: 8px;
             padding: 5px 0;
             font-size: 14px;
+            color: #2c3e50;
         }
         .task-item .icon { font-size: 16px; width: 24px; text-align: center; }
         .task-item .time-tag {
@@ -144,40 +146,48 @@
         .btn.purple { background: #8e44ad; color: white; }
         .btn.small { padding: 4px 10px; font-size: 12px; }
         .form-group { margin-bottom: 14px; }
-        .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #34495e; }
-        h3 { color: #2c3e50; } /* 强制标题变黑，杜绝蓝字 */
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #34495e;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 10px;
+            font-size: 15px;
+            background: #fafcff;
+            color: #2c3e50;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #1a3b5d;
+            box-shadow: 0 0 0 3px rgba(26,59,93,0.1);
+        }
 
-.form-group { margin-bottom: 14px; }
-.form-group label {
-    display: block;
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 6px;
-    color: #34495e; /* 强制标签文字变深灰，杜绝蓝字 */
-}
-.form-group input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #dcdfe6;
-    border-radius: 10px;
-    font-size: 15px;
-    background: #fafcff;
-    box-sizing: border-box;
-}
+        /* ===== 手机Safari日期输入框强制修复（核心必杀技） ===== */
+        .form-group input[type="date"] {
+            text-align: left !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            min-height: 44px;
+            line-height: normal;
+            color: #2c3e50 !important;
+            -webkit-text-fill-color: #2c3e50 !important;
+        }
+        .form-group input[type="date"]::-webkit-datetime-edit {
+            text-align: left !important;
+            color: #2c3e50 !important;
+            -webkit-text-fill-color: #2c3e50 !important;
+        }
+        .form-group input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 0.6;
+        }
 
-/* 修复手机Safari日期左对齐（外层） */
-.form-group input[type="date"] {
-    text-align: left;
-    -webkit-appearance: none;
-    appearance: none;
-    min-height: 44px;
-    line-height: normal;
-}
-/* 这才是核心大招：修复日期输入框内部数字的左对齐！ */
-.form-group input[type="date"]::-webkit-datetime-edit {
-    text-align: left;
-}
-        .form-group input:focus { outline: none; border-color: #1a3b5d; box-shadow: 0 0 0 3px rgba(26,59,93,0.1); }
         .hidden { display: none; }
         .empty-state { text-align: center; color: #bdc3c7; padding: 30px 10px; font-size: 15px; }
         .search-box {
@@ -188,6 +198,7 @@
             font-size: 15px;
             margin-bottom: 12px;
             background: white;
+            color: #2c3e50;
         }
         .filter-bar {
             display: flex;
@@ -202,6 +213,7 @@
             background: white;
             font-size: 12px;
             cursor: pointer;
+            color: #2c3e50;
         }
         .filter-btn.active { background: #1a3b5d; color: white; border-color: #1a3b5d; }
         .meta-info { font-size: 13px; color: #7f8c8d; margin: 4px 0 6px; }
@@ -236,9 +248,15 @@
 <!-- 添加病人 -->
 <div id="tab-add" class="tab-content hidden">
     <div class="card">
-        <h3 style="margin-bottom:14px;">📝 录入新病人</h3>
-        <div class="form-group"><label>👤 姓名</label><input type="text" id="p-name" placeholder="请输入姓名"></div>
-        <div class="form-group"><label>📅 入院日期</label><input type="date" id="p-admission"></div>
+        <h3 style="margin-bottom:14px;color:#2c3e50;">📝 录入新病人</h3>
+        <div class="form-group">
+            <label for="p-name">👤 姓名</label>
+            <input type="text" id="p-name" placeholder="请输入姓名">
+        </div>
+        <div class="form-group">
+            <label for="p-admission">📅 入院日期</label>
+            <input type="date" id="p-admission">
+        </div>
         <button class="btn primary" style="width:100%;padding:12px;font-size:16px;" onclick="addPatient()">✅ 添加</button>
         <div style="margin-top:10px;font-size:13px;color:#95a5a6;">💡 手术、会诊、特殊病程可在“全部病人”中补充。</div>
     </div>
@@ -568,7 +586,6 @@ function completeTodos(id) {
 function deletePatient(id) {
     if (!confirm('⚠️ 永久删除该病人及其所有历史记录？此操作不可恢复！')) return;
     patients = patients.filter(p => p.id !== id);
-    // 同时删除该病人的所有历史记录（可选，也可保留但病人消失后无法关联）
     taskHistory = taskHistory.filter(h => h.patientId !== id);
     saveAll();
     renderAll();
