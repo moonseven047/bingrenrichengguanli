@@ -146,9 +146,15 @@
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #34495e; }
         .form-group input {
-            width: 100%;
-            padding: 10px 12px;
-            /* 修复手机Safari日期左对齐 */
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 10px;
+    font-size: 15px;
+    background: #fafcff;
+}
+
+/* 修复手机Safari日期左对齐 */
 .form-group input[type="date"] {
     text-align: left;
     -webkit-appearance: none;
@@ -156,11 +162,6 @@
     min-height: 44px;
     line-height: normal;
 }
-            border: 1px solid #dcdfe6;
-            border-radius: 10px;
-            font-size: 15px;
-            background: #fafcff;
-        }
         .form-group input:focus { outline: none; border-color: #1a3b5d; box-shadow: 0 0 0 3px rgba(26,59,93,0.1); }
         .hidden { display: none; }
         .empty-state { text-align: center; color: #bdc3c7; padding: 30px 10px; font-size: 15px; }
