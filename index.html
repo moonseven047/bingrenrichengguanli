@@ -145,22 +145,37 @@
         .btn.small { padding: 4px 10px; font-size: 12px; }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #34495e; }
-        .form-group input {
+        h3 { color: #2c3e50; } /* 强制标题变黑，杜绝蓝字 */
+
+.form-group { margin-bottom: 14px; }
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: #34495e; /* 强制标签文字变深灰，杜绝蓝字 */
+}
+.form-group input {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid #dcdfe6;
     border-radius: 10px;
     font-size: 15px;
     background: #fafcff;
+    box-sizing: border-box;
 }
 
-/* 修复手机Safari日期左对齐 */
+/* 修复手机Safari日期左对齐（外层） */
 .form-group input[type="date"] {
     text-align: left;
     -webkit-appearance: none;
     appearance: none;
     min-height: 44px;
     line-height: normal;
+}
+/* 这才是核心大招：修复日期输入框内部数字的左对齐！ */
+.form-group input[type="date"]::-webkit-datetime-edit {
+    text-align: left;
 }
         .form-group input:focus { outline: none; border-color: #1a3b5d; box-shadow: 0 0 0 3px rgba(26,59,93,0.1); }
         .hidden { display: none; }
