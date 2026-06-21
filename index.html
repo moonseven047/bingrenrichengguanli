@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>医师日程管家</title>
-    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <link rel="shortcut icon" href="favicon.ico" />
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="site.webmanifest" />
@@ -168,26 +167,6 @@
             border-color: #1a3b5d;
             box-shadow: 0 0 0 3px rgba(26,59,93,0.1);
         }
-
-        /* ===== 手机Safari日期输入框强制修复（核心必杀技） ===== */
-        .form-group input[type="date"] {
-            text-align: left !important;
-            -webkit-appearance: none !important;
-            appearance: none !important;
-            min-height: 44px;
-            line-height: normal;
-            color: #2c3e50 !important;
-            -webkit-text-fill-color: #2c3e50 !important;
-        }
-        .form-group input[type="date"]::-webkit-datetime-edit {
-            text-align: left !important;
-            color: #2c3e50 !important;
-            -webkit-text-fill-color: #2c3e50 !important;
-        }
-        .form-group input[type="date"]::-webkit-calendar-picker-indicator {
-            opacity: 0.6;
-        }
-
         .hidden { display: none; }
         .empty-state { text-align: center; color: #bdc3c7; padding: 30px 10px; font-size: 15px; }
         .search-box {
@@ -217,6 +196,21 @@
         }
         .filter-btn.active { background: #1a3b5d; color: white; border-color: #1a3b5d; }
         .meta-info { font-size: 13px; color: #7f8c8d; margin: 4px 0 6px; }
+        .special-date-tag {
+            background: #ecf0f1;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 2px 4px 2px 0;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+        .special-date-tag .remove {
+            cursor: pointer;
+            color: #e74c3c;
+            font-weight: bold;
+            margin-left: 4px;
+        }
     </style>
 </head>
 <body>
@@ -272,41 +266,55 @@ function saveAll() {
     localStorage.setItem('dr_task_history', JSON.stringify(taskHistory));
 }
 
-function todayStr() { return new Date().toISOString().split('T')[0]; }
-function dateDiff(d1, d2) { return Math.floor((new Date(d1) - new Date(d2)) / (1000*60*60*24)); }
+function todayStr() {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+}
+
+function dateDiff(d1, d2) {
+    return Math.floor((new Date(d1) - new Date(d2)) / (1000 * 60 * 60 * 24));
+}
 
 // ========== 核心规则引擎 ==========
-function getTasksForPatient(patient, checkDate, history) {
+function getTasksForPatient(patient, checkDate) {
     const tasks = [];
     const adm = patient.admission;
     const surg = patient.surgeryDate;
     const consult = patient.consultDate;
     const diff = dateDiff(checkDate, adm);
 
-    // 入院前3天固定病程
+    // 1. 入院前3天固定病程
     if (diff === 0) tasks.push({ text: '📝 写首程', type: 'admission', priority: 5 });
     if (diff === 1) tasks.push({ text: '👨‍⚕️ 主治查房', type: 'admission', priority: 5 });
     if (diff === 2) tasks.push({ text: '👨‍⚕️ 主任查房', type: 'admission', priority: 5 });
 
-    // 普通病程 (每3天, 支持特殊病程重置)
-    const baseDefault = new Date(adm);
-    baseDefault.setDate(baseDefault.getDate() + 2);
-    const baseDefaultStr = baseDefault.toISOString().split('T')[0];
-    const specials = (patient.specialRoutineDates || [])
-        .filter(d => d >= baseDefaultStr)
-        .sort();
-    const baseActual = specials.length > 0 ? specials[specials.length - 1] : baseDefaultStr;
-
-    if (checkDate >= baseActual) {
-        const diffFromBase = dateDiff(checkDate, baseActual);
-        if (diffFromBase % 3 === 0) {
-            if (!(diffFromBase === 0 && specials.includes(checkDate))) {
-                tasks.push({ text: '📋 普通病程 (每3日)', type: 'routine', priority: 3 });
+    // 2. 普通病程 (每3天, 支持特殊病程重置)
+    if (diff >= 2) {
+        // 基准日：入院第3天（即入院日期 + 2天）
+        const baseDefault = new Date(adm);
+        baseDefault.setDate(baseDefault.getDate() + 2);
+        const baseDefaultStr = baseDefault.toISOString().split('T')[0];
+        
+        // 获取所有特殊病程日期（仅取 >= 基准日的）
+        const specials = (patient.specialRoutineDates || [])
+            .filter(d => d >= baseDefaultStr)
+            .sort();
+        
+        // 实际基准 = 最后一个特殊病程日期（若存在）否则 baseDefaultStr
+        const baseActual = specials.length > 0 ? specials[specials.length - 1] : baseDefaultStr;
+        
+        if (checkDate >= baseActual) {
+            const diffFromBase = dateDiff(checkDate, baseActual);
+            if (diffFromBase % 3 === 0) {
+                // 如果今天恰好是特殊病程日且基准日就是今天，则不重复提醒
+                if (!(diffFromBase === 0 && specials.includes(checkDate))) {
+                    tasks.push({ text: '📋 普通病程 (每3日)', type: 'routine', priority: 3 });
+                }
             }
         }
     }
 
-    // 手术规则
+    // 3. 手术规则
     if (surg) {
         const sDiff = dateDiff(checkDate, surg);
         if (sDiff === -1) tasks.push({ text: '📋 术前讨论', type: 'surgery', priority: 6 });
@@ -319,7 +327,7 @@ function getTasksForPatient(patient, checkDate, history) {
         }
     }
 
-    // 会诊规则
+    // 4. 会诊规则
     if (consult) {
         const cDiff = dateDiff(checkDate, consult);
         if (cDiff === 0) {
@@ -327,21 +335,23 @@ function getTasksForPatient(patient, checkDate, history) {
         }
     }
 
-    // 去重、排序
+    // 去重（同一文本只保留一个）
     const unique = [];
     const seen = new Set();
     tasks.forEach(t => {
-        const key = t.text;
-        if (!seen.has(key)) { seen.add(key); unique.push(t); }
+        if (!seen.has(t.text)) {
+            seen.add(t.text);
+            unique.push(t);
+        }
     });
-    unique.sort((a,b) => b.priority - a.priority);
+    unique.sort((a, b) => b.priority - a.priority);
     return unique;
 }
 
 // ========== 获取任务 ==========
 function getTodayTodos(patient) {
     const today = todayStr();
-    const allTasks = getTasksForPatient(patient, today, taskHistory);
+    const allTasks = getTasksForPatient(patient, today);
     return allTasks.filter(task => {
         const key = `${patient.id}_${today}_${task.text}`;
         return !taskHistory.some(h => h.id === key && h.completed === true);
@@ -354,7 +364,7 @@ function getAllTasksWithHistory(patient) {
         const date = new Date();
         date.setDate(date.getDate() + d);
         const dateStr = date.toISOString().split('T')[0];
-        const tasks = getTasksForPatient(patient, dateStr, taskHistory);
+        const tasks = getTasksForPatient(patient, dateStr);
         tasks.forEach(t => {
             const key = `${patient.id}_${dateStr}_${t.text}`;
             const completed = taskHistory.some(h => h.id === key && h.completed === true);
@@ -371,15 +381,18 @@ function renderToday() {
     const container = document.getElementById('today-list');
     let html = '';
     let hasAny = false;
+    
     patients.forEach(p => {
         const todos = getTodayTodos(p);
         if (todos.length === 0) return;
         hasAny = true;
+        
         const isSurg = todos.some(t => t.type === 'surgery');
         const isConsult = todos.some(t => t.type === 'consult');
         let cardClass = 'urgent';
         if (isSurg) cardClass = 'surgery';
         if (isConsult) cardClass = 'consult';
+        
         html += `<div class="card ${cardClass}">
                     <div class="patient-header">
                         <span class="patient-name">${p.name}</span>
@@ -398,14 +411,18 @@ function renderToday() {
                 </div>`;
         html += `</div></div>`;
     });
+    
     container.innerHTML = hasAny ? html : `<div class="empty-state">🎉 今日无待办，辛苦了！</div>`;
 }
 
 function renderAllPatients() {
     const container = document.getElementById('all-list');
     const search = document.getElementById('search-input').value.trim().toLowerCase();
+    
+    // 1. 先按姓名搜索
     let filtered = patients.filter(p => p.name.toLowerCase().includes(search));
-
+    
+    // 2. 再按筛选器过滤
     if (currentFilter === 'todo') {
         filtered = filtered.filter(p => getTodayTodos(p).length > 0);
     } else if (currentFilter === 'done') {
@@ -413,6 +430,7 @@ function renderAllPatients() {
     } else if (currentFilter === 'surgery') {
         filtered = filtered.filter(p => p.surgeryDate);
     }
+    // 如果 currentFilter === 'all'，则不过滤，显示全部
 
     if (filtered.length === 0) {
         container.innerHTML = `<div class="empty-state">没有匹配的病人</div>`;
@@ -447,12 +465,13 @@ function renderAllPatients() {
                         <button class="btn warning small" onclick="addSpecialRoutine('${p.id}')">📅 添加特殊病程</button>
                         <button class="btn danger small" onclick="deletePatient('${p.id}')">🗑️ 删除病人</button>
                     </div>
+                    
                     ${(p.specialRoutineDates && p.specialRoutineDates.length > 0) ? 
                         `<div style="margin-top:4px;font-size:13px;color:#7f8c8d;">
                             <span style="font-weight:500;">特殊病程日期：</span>
                             ${p.specialRoutineDates.map(d => 
-                                `<span style="background:#ecf0f1;padding:2px 8px;border-radius:12px;display:inline-block;margin:2px 4px 2px 0;">
-                                    ${d} <span style="cursor:pointer;color:#e74c3c;font-weight:bold;" onclick="removeSpecialRoutine('${p.id}','${d}')">✕</span>
+                                `<span class="special-date-tag">
+                                    ${d} <span class="remove" onclick="removeSpecialRoutine('${p.id}','${d}')">✕</span>
                                 </span>`
                             ).join('')}
                         </div>` : ''
@@ -473,11 +492,18 @@ function renderAllPatients() {
 // ========== 操作函数 ==========
 function addPatient() {
     const name = document.getElementById('p-name').value.trim();
-    const adm = document.getElementById('p-admission').value;
-    if (!name || !adm) { alert('请填写完整'); return; }
+    const adm = document.getElementById('p-admission').value.trim();
+    if (!name) { alert('请输入病人姓名'); return; }
+    if (!adm) { alert('请输入入院日期 (格式: YYYY-MM-DD)'); return; }
+    // 简单验证日期格式
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(adm)) {
+        alert('日期格式错误，请使用 YYYY-MM-DD 格式，例如 2026-06-21');
+        return;
+    }
+    
     patients.push({
-        id: Date.now().toString(36)+Math.random().toString(36).substr(2,4),
-        name,
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+        name: name,
         admission: adm,
         surgeryDate: null,
         surgeryName: null,
@@ -486,6 +512,7 @@ function addPatient() {
         specialRoutineDates: []
     });
     saveAll();
+    
     document.getElementById('p-name').value = '';
     document.getElementById('p-admission').value = '';
     alert('✅ 添加成功');
@@ -498,6 +525,10 @@ function addSurgery(id) {
     if (!p) return;
     const date = prompt('请输入手术日期 (YYYY-MM-DD)：', todayStr());
     if (!date) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        alert('日期格式错误，请使用 YYYY-MM-DD 格式');
+        return;
+    }
     const name = prompt('请输入手术名称：', '');
     if (name === null) return;
     p.surgeryDate = date;
@@ -521,6 +552,10 @@ function addConsult(id) {
     if (!p) return;
     const date = prompt('请输入会诊日期 (YYYY-MM-DD)：', todayStr());
     if (!date) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        alert('日期格式错误，请使用 YYYY-MM-DD 格式');
+        return;
+    }
     const dept = prompt('请输入会诊科室：', '');
     if (dept === null) return;
     p.consultDate = date;
@@ -544,6 +579,10 @@ function addSpecialRoutine(id) {
     if (!p) return;
     const date = prompt('请输入特殊病程日期 (YYYY-MM-DD)：', todayStr());
     if (!date) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        alert('日期格式错误，请使用 YYYY-MM-DD 格式');
+        return;
+    }
     if (date < p.admission) {
         alert('特殊病程日期不能早于入院日期');
         return;
@@ -602,7 +641,9 @@ function switchTab(tab) {
 }
 
 document.querySelectorAll('.tab-btn').forEach(b => {
-    b.addEventListener('click', function() { switchTab(this.dataset.tab); });
+    b.addEventListener('click', function() {
+        switchTab(this.dataset.tab);
+    });
 });
 
 document.querySelectorAll('.filter-btn').forEach(b => {
@@ -616,7 +657,7 @@ document.querySelectorAll('.filter-btn').forEach(b => {
 
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('p-admission').value = todayStr();
+    // 为旧数据初始化特殊病程字段
     patients.forEach(p => {
         if (!p.specialRoutineDates) p.specialRoutineDates = [];
     });
