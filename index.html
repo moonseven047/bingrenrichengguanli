@@ -9,7 +9,6 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="site.webmanifest" />
     <style>
-        /* ===== 全局重置 ===== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -77,7 +76,6 @@
         }
         .card.urgent { border-left-color: #e74c3c; background: #fef9f8; }
         .card.surgery { border-left-color: #e67e22; background: #fefcf5; }
-        .card.consult { border-left-color: #8e44ad; background: #fdf9ff; }
         .patient-header {
             display: flex;
             justify-content: space-between;
@@ -96,7 +94,6 @@
         }
         .badge.red { background: #e74c3c; color: white; }
         .badge.orange { background: #e67e22; color: white; }
-        .badge.purple { background: #8e44ad; color: white; }
         .badge.green { background: #27ae60; color: white; }
         .task-list { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f2f5; }
         .task-item {
@@ -142,7 +139,6 @@
         .btn.success { background: #27ae60; color: white; }
         .btn.danger { background: #e74c3c; color: white; }
         .btn.warning { background: #e67e22; color: white; }
-        .btn.purple { background: #8e44ad; color: white; }
         .btn.small { padding: 4px 10px; font-size: 12px; }
         .form-group { margin-bottom: 14px; }
         .form-group label {
@@ -196,27 +192,12 @@
         }
         .filter-btn.active { background: #1a3b5d; color: white; border-color: #1a3b5d; }
         .meta-info { font-size: 13px; color: #7f8c8d; margin: 4px 0 6px; }
-        .special-date-tag {
-            background: #ecf0f1;
-            padding: 2px 8px;
-            border-radius: 12px;
-            display: inline-block;
-            margin: 2px 4px 2px 0;
-            font-size: 13px;
-            color: #2c3e50;
-        }
-        .special-date-tag .remove {
-            cursor: pointer;
-            color: #e74c3c;
-            font-weight: bold;
-            margin-left: 4px;
-        }
     </style>
 </head>
 <body>
 
 <h1>🏥 日程管家</h1>
-<div class="sub">⚡ 智能提醒 · 手术/会诊/特殊病程 · 历史可查</div>
+<div class="sub">⚡ 智能提醒 · 手术管理 · 历史可查</div>
 
 <div class="tab-bar">
     <button class="tab-btn active" data-tab="today">📋 今日</button>
@@ -252,7 +233,7 @@
             <input type="text" id="p-admission" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}">
         </div>
         <button class="btn primary" style="width:100%;padding:12px;font-size:16px;" onclick="addPatient()">✅ 添加</button>
-        <div style="margin-top:10px;font-size:13px;color:#95a5a6;">💡 手术、会诊、特殊病程可在“全部病人”中补充。</div>
+        <div style="margin-top:10px;font-size:13px;color:#95a5a6;">💡 手术信息可在“全部病人”中后续补充。</div>
     </div>
 </div>
 
@@ -266,9 +247,13 @@ function saveAll() {
     localStorage.setItem('dr_task_history', JSON.stringify(taskHistory));
 }
 
+// ========== 工具函数 ==========
 function todayStr() {
     const d = new Date();
-    return d.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return year + '-' + month + '-' + day;
 }
 
 function dateDiff(d1, d2) {
@@ -277,65 +262,92 @@ function dateDiff(d1, d2) {
 
 // ========== 核心规则引擎 ==========
 function getTasksForPatient(patient, checkDate) {
-    const tasks = [];
     const adm = patient.admission;
     const surg = patient.surgeryDate;
-    const consult = patient.consultDate;
     const diff = dateDiff(checkDate, adm);
 
-    // 1. 入院前3天固定病程
-    if (diff === 0) tasks.push({ text: '📝 写首程', type: 'admission', priority: 5 });
-    if (diff === 1) tasks.push({ text: '👨‍⚕️ 主治查房', type: 'admission', priority: 5 });
-    if (diff === 2) tasks.push({ text: '👨‍⚕️ 主任查房', type: 'admission', priority: 5 });
+    // ---- 第一步：入院前3天固定病程（优先级最高，不受任何影响） ----
+    const tasks = [];
+    if (diff === 0) tasks.push({ text: '📝 写首程', type: 'admission', priority: 10 });
+    if (diff === 1) tasks.push({ text: '👨‍⚕️ 主治查房', type: 'admission', priority: 10 });
+    if (diff === 2) tasks.push({ text: '👨‍⚕️ 主任查房', type: 'admission', priority: 10 });
 
-    // 2. 普通病程 (每3天, 支持特殊病程重置)
-    if (diff >= 2) {
-        // 基准日：入院第3天（即入院日期 + 2天）
-        const baseDefault = new Date(adm);
-        baseDefault.setDate(baseDefault.getDate() + 2);
-        const baseDefaultStr = baseDefault.toISOString().split('T')[0];
+    // ---- 第二步：普通病程（从第6天开始，每3天一次） ----
+    // 先检查是否有手术影响了普通病程的起始点
+    let routineStartDate = null;
+    
+    if (surg) {
+        // 计算术后第3天的日期
+        const postOpDay3 = new Date(surg);
+        postOpDay3.setDate(postOpDay3.getDate() + 3);
+        const postOpDay3Str = postOpDay3.toISOString().split('T')[0];
         
-        // 获取所有特殊病程日期（仅取 >= 基准日的）
-        const specials = (patient.specialRoutineDates || [])
-            .filter(d => d >= baseDefaultStr)
-            .sort();
-        
-        // 实际基准 = 最后一个特殊病程日期（若存在）否则 baseDefaultStr
-        const baseActual = specials.length > 0 ? specials[specials.length - 1] : baseDefaultStr;
-        
-        if (checkDate >= baseActual) {
-            const diffFromBase = dateDiff(checkDate, baseActual);
-            if (diffFromBase % 3 === 0) {
-                // 如果今天恰好是特殊病程日且基准日就是今天，则不重复提醒
-                if (!(diffFromBase === 0 && specials.includes(checkDate))) {
-                    tasks.push({ text: '📋 普通病程 (每3日)', type: 'routine', priority: 3 });
-                }
-            }
+        // 如果今天 >= 术后第3天，且病人有手术，则以术后第3天为新的普通病程起点
+        if (checkDate >= postOpDay3Str) {
+            routineStartDate = postOpDay3Str;
+        }
+    }
+    
+    // 如果没有被手术重置，则使用默认起点：入院第6天（入院日期 + 5天）
+    if (!routineStartDate) {
+        const defaultStart = new Date(adm);
+        defaultStart.setDate(defaultStart.getDate() + 5);
+        routineStartDate = defaultStart.toISOString().split('T')[0];
+    }
+    
+    // 计算从起点到今天的间隔天数
+    if (checkDate >= routineStartDate) {
+        const diffFromStart = dateDiff(checkDate, routineStartDate);
+        // 每3天一次（间隔为3的倍数）
+        if (diffFromStart % 3 === 0) {
+            tasks.push({ text: '📋 普通病程 (每3日)', type: 'routine', priority: 5 });
         }
     }
 
-    // 3. 手术规则
+    // ---- 第三步：手术相关任务 ----
     if (surg) {
         const sDiff = dateDiff(checkDate, surg);
-        if (sDiff === -1) tasks.push({ text: '📋 术前讨论', type: 'surgery', priority: 6 });
+        
+        // 手术前一天：术前讨论 + 术前术者查房
+        if (sDiff === -1) {
+            tasks.push({ text: '📋 术前讨论', type: 'surgery', priority: 8 });
+            tasks.push({ text: '👨‍⚕️ 术前术者查房', type: 'surgery', priority: 8 });
+        }
+        
+        // 手术当天：术后首次查房
         if (sDiff === 0) {
-            tasks.push({ text: '🔪 手术记录', type: 'surgery', priority: 7 });
-            tasks.push({ text: '📝 术后首程', type: 'surgery', priority: 7 });
+            tasks.push({ text: '📝 术后首次查房', type: 'surgery', priority: 8 });
         }
-        if (sDiff >= 1 && sDiff <= 3) {
-            tasks.push({ text: `📋 术后第${sDiff}天病程`, type: 'surgery', priority: 4 });
+        
+        // 术后第1、2、3天：术后查房（优先级高于普通病程）
+        if (sDiff === 1) {
+            tasks.push({ text: '📋 术后第一日查房', type: 'surgery', priority: 9 });
+        }
+        if (sDiff === 2) {
+            tasks.push({ text: '📋 术后第二日查房', type: 'surgery', priority: 9 });
+        }
+        if (sDiff === 3) {
+            tasks.push({ text: '📋 术后第三日查房', type: 'surgery', priority: 9 });
         }
     }
 
-    // 4. 会诊规则
-    if (consult) {
-        const cDiff = dateDiff(checkDate, consult);
-        if (cDiff === 0) {
-            tasks.push({ text: '👨‍⚕️ 写会诊病程', type: 'consult', priority: 6 });
+    // ---- 第四步：处理优先级冲突 ----
+    // 规则：如果术后第一/二/三日查房存在，则删除同日的普通病程
+    const hasPostOpDay = tasks.some(t => 
+        t.text === '📋 术后第一日查房' || 
+        t.text === '📋 术后第二日查房' || 
+        t.text === '📋 术后第三日查房'
+    );
+    
+    if (hasPostOpDay) {
+        // 移除普通病程
+        const index = tasks.findIndex(t => t.text === '📋 普通病程 (每3日)');
+        if (index !== -1) {
+            tasks.splice(index, 1);
         }
     }
 
-    // 去重（同一文本只保留一个）
+    // ---- 第五步：去重、排序 ----
     const unique = [];
     const seen = new Set();
     tasks.forEach(t => {
@@ -381,27 +393,24 @@ function renderToday() {
     const container = document.getElementById('today-list');
     let html = '';
     let hasAny = false;
-    
+
     patients.forEach(p => {
         const todos = getTodayTodos(p);
         if (todos.length === 0) return;
         hasAny = true;
-        
+
         const isSurg = todos.some(t => t.type === 'surgery');
-        const isConsult = todos.some(t => t.type === 'consult');
         let cardClass = 'urgent';
         if (isSurg) cardClass = 'surgery';
-        if (isConsult) cardClass = 'consult';
-        
+
         html += `<div class="card ${cardClass}">
                     <div class="patient-header">
                         <span class="patient-name">${p.name}</span>
                         <span>
                             ${p.surgeryName ? `<span class="badge orange">🔪 ${p.surgeryName}</span>` : ''}
-                            ${p.consultDept ? `<span class="badge purple">👨‍⚕️ ${p.consultDept}</span>` : ''}
                         </span>
                     </div>
-                    <div class="meta-info">入院: ${p.admission} ${p.surgeryDate ? ' | 手术: '+p.surgeryDate : ''} ${p.consultDate ? ' | 会诊: '+p.consultDate : ''}</div>
+                    <div class="meta-info">入院: ${p.admission} ${p.surgeryDate ? ' | 手术: '+p.surgeryDate : ''}</div>
                     <div class="task-list">`;
         todos.forEach(t => {
             html += `<div class="task-item"><span class="icon">${t.text.split(' ')[0]}</span><span>${t.text}</span><span class="time-tag">今日</span></div>`;
@@ -411,18 +420,16 @@ function renderToday() {
                 </div>`;
         html += `</div></div>`;
     });
-    
+
     container.innerHTML = hasAny ? html : `<div class="empty-state">🎉 今日无待办，辛苦了！</div>`;
 }
 
 function renderAllPatients() {
     const container = document.getElementById('all-list');
     const search = document.getElementById('search-input').value.trim().toLowerCase();
-    
-    // 1. 先按姓名搜索
+
     let filtered = patients.filter(p => p.name.toLowerCase().includes(search));
-    
-    // 2. 再按筛选器过滤
+
     if (currentFilter === 'todo') {
         filtered = filtered.filter(p => getTodayTodos(p).length > 0);
     } else if (currentFilter === 'done') {
@@ -430,7 +437,6 @@ function renderAllPatients() {
     } else if (currentFilter === 'surgery') {
         filtered = filtered.filter(p => p.surgeryDate);
     }
-    // 如果 currentFilter === 'all'，则不过滤，显示全部
 
     if (filtered.length === 0) {
         container.innerHTML = `<div class="empty-state">没有匹配的病人</div>`;
@@ -442,40 +448,24 @@ function renderAllPatients() {
         const todos = getTodayTodos(p);
         const allHist = getAllTasksWithHistory(p).filter(t => t.completed).slice(0, 10);
         const isSurg = p.surgeryDate ? true : false;
-        const isConsult = p.consultDate ? true : false;
         let cardClass = '';
         if (isSurg) cardClass = 'surgery';
-        if (isConsult) cardClass = 'consult';
-        if (todos.length === 0 && !isSurg && !isConsult) cardClass = '';
+        if (todos.length === 0 && !isSurg) cardClass = '';
 
         html += `<div class="card ${cardClass}">
                     <div class="patient-header">
                         <span class="patient-name">${p.name}</span>
                         <div>
                             ${p.surgeryName ? `<span class="badge orange">🔪 ${p.surgeryName}</span>` : ''}
-                            ${p.consultDept ? `<span class="badge purple">👨‍⚕️ ${p.consultDept}</span>` : ''}
                             ${todos.length > 0 ? `<span class="badge red">${todos.length}项待办</span>` : ''}
                         </div>
                     </div>
-                    <div class="meta-info">入院: ${p.admission} ${p.surgeryDate ? ' | 手术: '+p.surgeryDate : ''} ${p.consultDate ? ' | 会诊: '+p.consultDate : ''}</div>
-                    
+                    <div class="meta-info">入院: ${p.admission} ${p.surgeryDate ? ' | 手术: '+p.surgeryDate : ''}</div>
+
                     <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;">
                         ${!p.surgeryDate ? `<button class="btn primary small" onclick="addSurgery('${p.id}')">🔪 添加手术</button>` : `<button class="btn danger small" onclick="removeSurgery('${p.id}')">取消手术</button>`}
-                        ${!p.consultDate ? `<button class="btn purple small" onclick="addConsult('${p.id}')">👨‍⚕️ 添加会诊</button>` : `<button class="btn danger small" onclick="removeConsult('${p.id}')">取消会诊</button>`}
-                        <button class="btn warning small" onclick="addSpecialRoutine('${p.id}')">📅 添加特殊病程</button>
                         <button class="btn danger small" onclick="deletePatient('${p.id}')">🗑️ 删除病人</button>
                     </div>
-                    
-                    ${(p.specialRoutineDates && p.specialRoutineDates.length > 0) ? 
-                        `<div style="margin-top:4px;font-size:13px;color:#7f8c8d;">
-                            <span style="font-weight:500;">特殊病程日期：</span>
-                            ${p.specialRoutineDates.map(d => 
-                                `<span class="special-date-tag">
-                                    ${d} <span class="remove" onclick="removeSpecialRoutine('${p.id}','${d}')">✕</span>
-                                </span>`
-                            ).join('')}
-                        </div>` : ''
-                    }
 
                     ${todos.length > 0 ? `<div class="task-list"><strong>今日待办：</strong>` : ''}
                     ${todos.map(t => `<div class="task-item"><span class="icon">${t.text.split(' ')[0]}</span><span>${t.text}</span><span class="time-tag">今日</span></div>`).join('')}
@@ -495,24 +485,20 @@ function addPatient() {
     const adm = document.getElementById('p-admission').value.trim();
     if (!name) { alert('请输入病人姓名'); return; }
     if (!adm) { alert('请输入入院日期 (格式: YYYY-MM-DD)'); return; }
-    // 简单验证日期格式
     if (!/^\d{4}-\d{2}-\d{2}$/.test(adm)) {
         alert('日期格式错误，请使用 YYYY-MM-DD 格式，例如 2026-06-21');
         return;
     }
-    
+
     patients.push({
         id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
         name: name,
         admission: adm,
         surgeryDate: null,
-        surgeryName: null,
-        consultDate: null,
-        consultDept: null,
-        specialRoutineDates: []
+        surgeryName: null
     });
     saveAll();
-    
+
     document.getElementById('p-name').value = '';
     document.getElementById('p-admission').value = '';
     alert('✅ 添加成功');
@@ -543,66 +529,6 @@ function removeSurgery(id) {
     if (!confirm('取消手术信息？')) return;
     p.surgeryDate = null;
     p.surgeryName = null;
-    saveAll();
-    renderAll();
-}
-
-function addConsult(id) {
-    const p = patients.find(p => p.id === id);
-    if (!p) return;
-    const date = prompt('请输入会诊日期 (YYYY-MM-DD)：', todayStr());
-    if (!date) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        alert('日期格式错误，请使用 YYYY-MM-DD 格式');
-        return;
-    }
-    const dept = prompt('请输入会诊科室：', '');
-    if (dept === null) return;
-    p.consultDate = date;
-    p.consultDept = dept || '未填科室';
-    saveAll();
-    renderAll();
-}
-
-function removeConsult(id) {
-    const p = patients.find(p => p.id === id);
-    if (!p) return;
-    if (!confirm('取消会诊信息？')) return;
-    p.consultDate = null;
-    p.consultDept = null;
-    saveAll();
-    renderAll();
-}
-
-function addSpecialRoutine(id) {
-    const p = patients.find(p => p.id === id);
-    if (!p) return;
-    const date = prompt('请输入特殊病程日期 (YYYY-MM-DD)：', todayStr());
-    if (!date) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        alert('日期格式错误，请使用 YYYY-MM-DD 格式');
-        return;
-    }
-    if (date < p.admission) {
-        alert('特殊病程日期不能早于入院日期');
-        return;
-    }
-    if (!p.specialRoutineDates) p.specialRoutineDates = [];
-    if (p.specialRoutineDates.includes(date)) {
-        alert('该日期已存在特殊病程记录');
-        return;
-    }
-    p.specialRoutineDates.push(date);
-    saveAll();
-    renderAll();
-    alert(`✅ 已添加 ${date} 特殊病程，普通病程周期已重置。`);
-}
-
-function removeSpecialRoutine(id, date) {
-    const p = patients.find(p => p.id === id);
-    if (!p) return;
-    if (!confirm(`移除 ${date} 的特殊病程记录？`)) return;
-    p.specialRoutineDates = (p.specialRoutineDates || []).filter(d => d !== date);
     saveAll();
     renderAll();
 }
@@ -657,10 +583,6 @@ document.querySelectorAll('.filter-btn').forEach(b => {
 
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', function() {
-    // 为旧数据初始化特殊病程字段
-    patients.forEach(p => {
-        if (!p.specialRoutineDates) p.specialRoutineDates = [];
-    });
     saveAll();
     renderToday();
     renderAllPatients();
